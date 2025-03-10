@@ -2,6 +2,16 @@ const app = require('./app');
 require('dotenv').config();
 const { pool } = require('./config/database');
 
+console.log('Iniciando servidor...');
+
+// Ejecuta primero el script de configuración para Render (si no se ha hecho desde el archivo raíz)
+try {
+  require('./render-setup');
+  console.log('Script de configuración para Render ejecutado correctamente');
+} catch (error) {
+  console.error('Error al ejecutar el script de configuración para Render:', error.message);
+}
+
 // Prueba inicial de conexión a la base de datos
 pool.query('SELECT 1')
   .then(() => {
@@ -20,7 +30,15 @@ pool.query('SELECT 1')
   });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en el puerto ${PORT}`);
+});
+
+// Manejo de errores no capturados
+process.on('uncaughtException', (err) => {
+  console.error('Error no capturado:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Promesa rechazada no manejada:', reason);
 });
