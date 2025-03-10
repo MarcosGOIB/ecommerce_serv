@@ -8,7 +8,7 @@
         "dev": "nodemon src/server.js",
         "test": "jest --forceExit",
         "db:setup": "node src/db/setup.js",
-        "render-postbuild": "node src/render-setup.js"
+        
     },
     "keywords": [
         "api",
