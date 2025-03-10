@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -11,21 +12,16 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-
-const fs = require('fs');
-const path = require('path');
-
 // Configurar directorio de subida según el entorno
 const uploadDir = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, '../tmp/uploads') 
-  : path.join(__dirname, '../public/uploads');
+  ? path.join(__dirname, 'tmp/uploads') 
+  : path.join(__dirname, 'public/uploads');
 
 // Asegurar que el directorio existe
 if (!fs.existsSync(uploadDir)) {
   console.log(`Creando directorio de subidas: ${uploadDir}`);
   fs.mkdirSync(uploadDir, { recursive: true });
 }
-
 
 // Configuración CORS adecuada para producción
 const corsOptions = {
@@ -41,12 +37,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Configuración de directorios para imágenes
-// En producción, usar directorio temporal pero accesible
-const uploadDir = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, 'tmp/uploads')
-  : path.join(__dirname, 'public/uploads');
 
 // Ruta para servir imágenes, ajustada para producción
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
