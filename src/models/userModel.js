@@ -28,10 +28,16 @@ class User {
   static async create({ username, email, password, role = 'user' }) {
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Modificamos la consulta para permitir que PostgreSQL genere el ID
+    // Primero, obtener el máximo ID actual y calcular el siguiente
+    const maxIdResult = await db.query('SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM users');
+    const nextId = maxIdResult.rows[0].next_id;
+    
+    console.log(`Generando nuevo usuario con ID: ${nextId}`);
+    
+    // Usar el ID calculado manualmente en la inserción
     const result = await db.query(
-      'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [username, email, hashedPassword, role]
+      'INSERT INTO users (id, username, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [nextId, username, email, hashedPassword, role]
     );
     
     return result.rows[0];
