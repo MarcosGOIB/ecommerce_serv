@@ -12,20 +12,24 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-// Configurar directorio de subida según el entorno
-const uploadDir = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, 'public/uploads') // Cambiado para usar public/uploads en producción también
-  : path.join(__dirname, 'public/uploads');
+// Configuración de directorios de uploads
+const publicUploadsDir = path.join(__dirname, 'public/uploads');
+const tmpUploadsDir = path.join(__dirname, 'tmp/uploads');
 
-// Asegurar que el directorio existe
-if (!fs.existsSync(uploadDir)) {
-  console.log(`Creando directorio de subidas: ${uploadDir}`);
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Asegurar que ambos directorios existen
+if (!fs.existsSync(publicUploadsDir)) {
+  console.log(`Creando directorio: ${publicUploadsDir}`);
+  fs.mkdirSync(publicUploadsDir, { recursive: true });
 }
 
-// Configuración CORS adecuada para producción
+if (!fs.existsSync(tmpUploadsDir)) {
+  console.log(`Creando directorio: ${tmpUploadsDir}`);
+  fs.mkdirSync(tmpUploadsDir, { recursive: true });
+}
+
+// Configuración CORS
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || '*', // En producción, especificar el dominio de Netlify
+  origin: process.env.FRONTEND_URL || '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -38,11 +42,22 @@ app.use(express.urlencoded({ extended: true }));
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Servir imágenes desde la carpeta uploads
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+// Configura rutas para acceder a las imágenes desde diferentes ubicaciones
+app.use('/uploads', express.static(publicUploadsDir));
+app.use('/api/uploads', express.static(publicUploadsDir));
+app.use('/api/uploads', express.static(tmpUploadsDir));
 
-// En producción, también servir las imágenes a través de /api/uploads
-app.use('/api/uploads', express.static(path.join(__dirname, 'public/uploads')));
+// Endpoint para probar rutas de imágenes
+app.get('/check-image-paths', (req, res) => {
+  res.json({
+    publicUploadsDir: fs.existsSync(publicUploadsDir),
+    tmpUploadsDir: fs.existsSync(tmpUploadsDir),
+    files: {
+      publicUploads: fs.existsSync(publicUploadsDir) ? fs.readdirSync(publicUploadsDir) : [],
+      tmpUploads: fs.existsSync(tmpUploadsDir) ? fs.readdirSync(tmpUploadsDir) : []
+    }
+  });
+});
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
