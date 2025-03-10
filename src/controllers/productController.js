@@ -2,27 +2,40 @@ const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
 const db = require('../config/database');
 
-// Imagen de placeholder predeterminada que funciona siempre
-const DEFAULT_PLACEHOLDER = 'https://placehold.co/300x300/e2e2e2/5f5f5f?text=No+Image';
+// Imagen de placeholder predeterminada local
+const DEFAULT_PLACEHOLDER = '/images/placeholder.jpg';
 
 // URL base para las imágenes (ajustada según el entorno)
-const BASE_IMAGE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://ecommerce-serv.onrender.com'  // URL de tu servidor en Render
-  : 'http://localhost:3000'; // URL local para desarrollo
+const getBaseUrl = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.API_URL || 'https://ecommerce-serv.onrender.com';
+  }
+  return 'http://localhost:3000';
+};
 
 // Función para normalizar la URL de la imagen
 const normalizeImageUrl = (imageUrl) => {
-  if (!imageUrl) return DEFAULT_PLACEHOLDER;
+  if (!imageUrl) {
+    console.log('No se proporcionó imagen, usando placeholder');
+    return DEFAULT_PLACEHOLDER;
+  }
   
-  // Si ya es una URL completa (comienza con http/https), devolverla tal cual
+  // Si ya es una URL absoluta (comienza con http/https), devolverla tal cual
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    console.log(`URL absoluta detectada: ${imageUrl}`);
     return imageUrl;
   }
   
-  // Si es una ruta relativa, construir la URL completa
-  // Primero eliminamos cualquier '/' inicial para evitar dobles barras
-  const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
-  return `${BASE_IMAGE_URL}/${cleanPath}`;
+  // Si es una ruta relativa que comienza con '/uploads/' o '/api/uploads/', asegurarnos que sea accesible
+  if (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('/api/uploads/')) {
+    const fileName = imageUrl.split('/').pop();
+    console.log(`URL relativa detectada: ${imageUrl}, nombre de archivo: ${fileName}`);
+    return `${getBaseUrl()}/uploads/${fileName}`;
+  }
+  
+  // Para cualquier otra ruta relativa, construir la URL completa
+  console.log(`Otra ruta detectada: ${imageUrl}`);
+  return `${getBaseUrl()}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
 };
 
 // Función auxiliar para garantizar que todos los productos tengan una imagen válida
@@ -167,13 +180,15 @@ exports.createProduct = async (req, res, next) => {
       return res.status(400).json({ message: 'Para juegos de cartas o singles, el tipo de juego es requerido' });
     }
 
+    console.log(`Creando producto con imagen: ${image_url}`);
+    
     const newProduct = await Product.create({
       name,
       price,
       quantity,
       short_description,
       full_description,
-      image_url: image_url || null,
+      image_url,
       category_id,
       brand: categoryName === 'accesorios' ? brand : null,
       game_type: (categoryName === 'juegos de cartas' || categoryName === 'singles') ? game_type : null
@@ -184,6 +199,7 @@ exports.createProduct = async (req, res, next) => {
       product: ensureValidImageUrl(newProduct)
     });
   } catch (error) {
+    console.error('Error al crear producto:', error);
     next(error);
   }
 };
