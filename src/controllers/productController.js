@@ -2,13 +2,32 @@ const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
 const db = require('../config/database');
 
+// Imagen de placeholder predeterminada que funciona siempre (usando placehold.co en lugar de via.placeholder.com)
+const DEFAULT_PLACEHOLDER = 'https://placehold.co/300x300/e2e2e2/5f5f5f?text=No+Image';
+
+// Función auxiliar para garantizar que todos los productos tengan una imagen válida
+const ensureValidImageUrl = (products) => {
+  if (Array.isArray(products)) {
+    return products.map(product => ({
+      ...product,
+      image_url: product.image_url || DEFAULT_PLACEHOLDER
+    }));
+  } else if (products && typeof products === 'object') {
+    return {
+      ...products,
+      image_url: products.image_url || DEFAULT_PLACEHOLDER
+    };
+  }
+  return products;
+};
+
 exports.getAllProducts = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     
     const products = await Product.findAll(limit, offset);
-    res.json({ products });
+    res.json({ products: ensureValidImageUrl(products) });
   } catch (error) {
     next(error);
   }
@@ -28,7 +47,7 @@ exports.getProductsByCategory = async (req, res, next) => {
     const products = await Product.findByCategory(categorySlug, limit, offset);
     res.json({ 
       category,
-      products 
+      products: ensureValidImageUrl(products)
     });
   } catch (error) {
     next(error);
@@ -44,7 +63,7 @@ exports.getProductsByBrand = async (req, res, next) => {
     const products = await Product.findByBrand(brand, limit, offset);
     res.json({ 
       brand,
-      products 
+      products: ensureValidImageUrl(products)
     });
   } catch (error) {
     next(error);
@@ -60,7 +79,7 @@ exports.getProductsByGameType = async (req, res, next) => {
     const products = await Product.findByGameType(gameType, limit, offset);
     res.json({ 
       gameType,
-      products 
+      products: ensureValidImageUrl(products)
     });
   } catch (error) {
     next(error);
@@ -77,7 +96,7 @@ exports.getProductById = async (req, res, next) => {
       if (!result) {
         return res.status(404).json({ message: 'No se encontraron productos' });
       }
-      return res.json({ product: result });
+      return res.json({ product: ensureValidImageUrl(result) });
     }
     
     // Verificar que el ID sea un número
@@ -90,7 +109,7 @@ exports.getProductById = async (req, res, next) => {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
     
-    res.json({ product });
+    res.json({ product: ensureValidImageUrl(product) });
   } catch (error) {
     next(error);
   }
@@ -128,13 +147,15 @@ exports.createProduct = async (req, res, next) => {
       return res.status(400).json({ message: 'Para juegos de cartas o singles, el tipo de juego es requerido' });
     }
 
+    const finalImageUrl = image_url || DEFAULT_PLACEHOLDER;
+
     const newProduct = await Product.create({
       name,
       price,
       quantity,
       short_description,
       full_description,
-      image_url,
+      image_url: finalImageUrl,
       category_id,
       brand: categoryName === 'accesorios' ? brand : null,
       game_type: (categoryName === 'juegos de cartas' || categoryName === 'singles') ? game_type : null
@@ -142,7 +163,7 @@ exports.createProduct = async (req, res, next) => {
 
     res.status(201).json({
       message: 'Producto creado exitosamente',
-      product: newProduct
+      product: ensureValidImageUrl(newProduct)
     });
   } catch (error) {
     next(error);
@@ -194,13 +215,16 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(400).json({ message: 'Para juegos de cartas o singles, el tipo de juego es requerido' });
     }
 
+    // Usar la imagen existente o el placeholder si no se proporciona una nueva
+    const finalImageUrl = image_url || product.image_url || DEFAULT_PLACEHOLDER;
+
     const updatedProduct = await Product.update(productId, {
       name,
       price,
       quantity,
       short_description,
       full_description,
-      image_url,
+      image_url: finalImageUrl,
       category_id,
       brand,
       game_type
@@ -208,7 +232,7 @@ exports.updateProduct = async (req, res, next) => {
 
     res.json({
       message: 'Producto actualizado exitosamente',
-      product: updatedProduct
+      product: ensureValidImageUrl(updatedProduct)
     });
   } catch (error) {
     next(error);
