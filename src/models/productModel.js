@@ -47,11 +47,15 @@ class Product {
   }
 
   static async create({ name, price, quantity, short_description, full_description, image_url, category_id, brand, game_type }) {
+    // Manejo de valores nulos para brand y game_type
+    const brandValue = brand || null;
+    const gameTypeValue = game_type || null;
+    
     const result = await db.query(
       `INSERT INTO products (name, price, quantity, short_description, full_description, image_url, category_id, brand, game_type) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
-      [name, price, quantity, short_description, full_description, image_url, category_id, brand, game_type]
+      [name, price, quantity, short_description, full_description, image_url || null, category_id, brandValue, gameTypeValue]
     );
     return result.rows[0];
   }
@@ -64,7 +68,7 @@ class Product {
 
     let paramIndex = 1;
 
-    if (name) {
+    if (name !== undefined) {
       queryParts.push(`name = $${paramIndex++}`);
       values.push(name);
     }
@@ -79,17 +83,17 @@ class Product {
       values.push(quantity);
     }
 
-    if (short_description) {
+    if (short_description !== undefined) {
       queryParts.push(`short_description = $${paramIndex++}`);
       values.push(short_description);
     }
 
-    if (full_description) {
+    if (full_description !== undefined) {
       queryParts.push(`full_description = $${paramIndex++}`);
       values.push(full_description);
     }
 
-    if (image_url) {
+    if (image_url !== undefined) {
       queryParts.push(`image_url = $${paramIndex++}`);
       values.push(image_url);
     }
