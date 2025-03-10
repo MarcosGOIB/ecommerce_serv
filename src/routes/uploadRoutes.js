@@ -5,36 +5,33 @@ const path = require('path');
 const fs = require('fs');
 const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 
-// Configurar directorio de subida
-// Usar directorio que persista en Render
-const uploadDir = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, '../tmp/uploads') // En Render, usamos /tmp que es accesible pero temporal
-  : path.join(__dirname, '../public/uploads');
+// Configurar directorios de subida
+const tmpUploadDir = path.join(__dirname, '../tmp/uploads');
+const publicUploadDir = path.join(__dirname, '../public/uploads');
 
-console.log("Directorio de uploads:", uploadDir);
-
-// Asegurar que el directorio existe
-if (!fs.existsSync(uploadDir)) {
-  console.log("Creando directorio de uploads...");
-  try {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    console.log("Directorio creado con éxito");
-  } catch (error) {
-    console.error("Error al crear directorio:", error);
+// Asegurar que los directorios existen
+[tmpUploadDir, publicUploadDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    console.log(`Creando directorio: ${dir}`);
+    fs.mkdirSync(dir, { recursive: true });
   }
-}
+});
+
+console.log("Directorios de uploads configurados:");
+console.log(`- Temporal: ${tmpUploadDir}`);
+console.log(`- Público: ${publicUploadDir}`);
 
 // Configurar almacenamiento de multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    console.log("Guardando archivo en:", uploadDir);
-    cb(null, uploadDir);
+    // Guardar en el directorio público para asegurar que sea accesible
+    cb(null, publicUploadDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
     const filename = uniqueSuffix + ext;
-    console.log("Nombre de archivo generado:", filename);
+    console.log(`Generando archivo: ${filename}`);
     cb(null, filename);
   }
 });
@@ -68,11 +65,8 @@ router.post('/', verifyToken, isAdmin, upload.single('image'), (req, res) => {
 
     console.log("Archivo recibido:", req.file);
     
-    // Para Render, modificamos la URL para ser relativa a la API
-    // En producción (Render), las imágenes aún se guardan pero deberían migrarse a una solución permanente
-    const imageUrl = process.env.NODE_ENV === 'production'
-      ? `/api/uploads/${req.file.filename}` // Ruta accesible desde el frontend
-      : `/uploads/${req.file.filename}`;
+    // Definir la URL relativa para acceder a la imagen
+    const imageUrl = `/uploads/${req.file.filename}`;
     
     console.log("URL de la imagen que se guarda en BD:", imageUrl);
     
@@ -83,6 +77,29 @@ router.post('/', verifyToken, isAdmin, upload.single('image'), (req, res) => {
   } catch (error) {
     console.error('Error al subir la imagen:', error);
     res.status(500).json({ message: 'Error al subir la imagen', error: error.message });
+  }
+});
+
+// Ruta para verificar archivos existentes
+router.get('/check', verifyToken, isAdmin, (req, res) => {
+  try {
+    const publicFiles = fs.existsSync(publicUploadDir) 
+      ? fs.readdirSync(publicUploadDir) 
+      : [];
+    
+    const tmpFiles = fs.existsSync(tmpUploadDir) 
+      ? fs.readdirSync(tmpUploadDir) 
+      : [];
+    
+    res.json({
+      publicDirectory: publicUploadDir,
+      tmpDirectory: tmpUploadDir,
+      publicFiles,
+      tmpFiles
+    });
+  } catch (error) {
+    console.error('Error al verificar archivos:', error);
+    res.status(500).json({ message: 'Error al verificar archivos', error: error.message });
   }
 });
 
