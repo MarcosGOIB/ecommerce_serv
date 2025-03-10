@@ -47,15 +47,21 @@ class Product {
   }
 
   static async create({ name, price, quantity, short_description, full_description, image_url, category_id, brand, game_type }) {
+    // Primero, obtener el máximo ID actual y calcular el siguiente
+    const maxIdResult = await db.query('SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM products');
+    const nextId = maxIdResult.rows[0].next_id;
+    
+    console.log(`Generando nuevo producto con ID: ${nextId}`);
+    
     // Manejo de valores nulos para brand y game_type
     const brandValue = brand || null;
     const gameTypeValue = game_type || null;
     
     const result = await db.query(
-      `INSERT INTO products (name, price, quantity, short_description, full_description, image_url, category_id, brand, game_type) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+      `INSERT INTO products (id, name, price, quantity, short_description, full_description, image_url, category_id, brand, game_type) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
        RETURNING *`,
-      [name, price, quantity, short_description, full_description, image_url || null, category_id, brandValue, gameTypeValue]
+      [nextId, name, price, quantity, short_description, full_description, image_url || null, category_id, brandValue, gameTypeValue]
     );
     return result.rows[0];
   }
