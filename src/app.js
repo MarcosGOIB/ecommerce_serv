@@ -14,7 +14,7 @@ const app = express();
 
 // Configurar directorio de subida según el entorno
 const uploadDir = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, 'tmp/uploads') 
+  ? path.join(__dirname, 'public/uploads') // Cambiado para usar public/uploads en producción también
   : path.join(__dirname, 'public/uploads');
 
 // Asegurar que el directorio existe
@@ -38,11 +38,11 @@ app.use(express.urlencoded({ extended: true }));
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta para servir imágenes, ajustada para producción
+// Servir imágenes desde la carpeta uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-if (process.env.NODE_ENV === 'production') {
-  app.use('/api/uploads', express.static(uploadDir));
-}
+
+// En producción, también servir las imágenes a través de /api/uploads
+app.use('/api/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
