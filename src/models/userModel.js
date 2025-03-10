@@ -28,8 +28,9 @@ class User {
   static async create({ username, email, password, role = 'user' }) {
     const hashedPassword = await bcrypt.hash(password, 10);
     
+    // Modificamos la consulta para permitir que PostgreSQL genere el ID
     const result = await db.query(
-      'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role, created_at',
+      'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
       [username, email, hashedPassword, role]
     );
     
