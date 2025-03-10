@@ -1,34 +1,42 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/userModel');
+const jwtConfig = require('../config/jwt');
 
-
-const secret = process.env.JWT_SECRET || 'tu_secreto_super_seguro';
-const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+// Usar configuración centralizada para JWT
+const secret = jwtConfig.secret;
+const expiresIn = jwtConfig.expiresIn;
 
 exports.register = async (req, res, next) => {
   try {
     const { username, email, password } = req.body;
     
+    console.log(`Intento de registro: ${email}`);
+    
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'Todos los campos son requeridos' });
     }
     
-   
+    // Verificar si el email ya existe
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
+      console.log(`Email ya registrado: ${email}`);
       return res.status(400).json({ message: 'El email ya está registrado' });
     }
     
-   
+    // Crear el nuevo usuario
     const newUser = await User.create({ username, email, password });
     
-  
+    console.log(`Usuario creado: ${newUser.email}, ID: ${newUser.id}, Rol: ${newUser.role}`);
+    
+    // Generar token JWT
     const token = jwt.sign(
       { id: newUser.id, role: newUser.role },
       secret,
       { expiresIn }
     );
+    
+    console.log(`Token generado para el usuario: ${newUser.email}`);
     
     res.status(201).json({
       message: 'Usuario registrado exitosamente',
@@ -56,7 +64,7 @@ exports.login = async (req, res, next) => {
       return res.status(400).json({ message: 'Email y contraseña son requeridos' });
     }
 
-  
+    // Buscar usuario por email
     const user = await User.findByEmail(email);
     
     if (!user) {
@@ -66,7 +74,7 @@ exports.login = async (req, res, next) => {
 
     console.log(`Usuario encontrado: ${user.email}, ID: ${user.id}, Rol: ${user.role}`);
 
-  
+    // Verificar contraseña
     const isPasswordValid = await bcrypt.compare(password, user.password);
     
     console.log(`Contraseña válida: ${isPasswordValid}`);
@@ -75,7 +83,7 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-  
+    // Generar token JWT
     const token = jwt.sign(
       { id: user.id, role: user.role },
       secret,
