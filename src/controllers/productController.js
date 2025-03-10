@@ -2,20 +2,40 @@ const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
 const db = require('../config/database');
 
-// Imagen de placeholder predeterminada que funciona siempre (usando placehold.co en lugar de via.placeholder.com)
+// Imagen de placeholder predeterminada que funciona siempre
 const DEFAULT_PLACEHOLDER = 'https://placehold.co/300x300/e2e2e2/5f5f5f?text=No+Image';
+
+// URL base para las imágenes (ajustada según el entorno)
+const BASE_IMAGE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://ecommerce-serv.onrender.com'  // URL de tu servidor en Render
+  : 'http://localhost:3000'; // URL local para desarrollo
+
+// Función para normalizar la URL de la imagen
+const normalizeImageUrl = (imageUrl) => {
+  if (!imageUrl) return DEFAULT_PLACEHOLDER;
+  
+  // Si ya es una URL completa (comienza con http/https), devolverla tal cual
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // Si es una ruta relativa, construir la URL completa
+  // Primero eliminamos cualquier '/' inicial para evitar dobles barras
+  const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+  return `${BASE_IMAGE_URL}/${cleanPath}`;
+};
 
 // Función auxiliar para garantizar que todos los productos tengan una imagen válida
 const ensureValidImageUrl = (products) => {
   if (Array.isArray(products)) {
     return products.map(product => ({
       ...product,
-      image_url: product.image_url || DEFAULT_PLACEHOLDER
+      image_url: normalizeImageUrl(product.image_url)
     }));
   } else if (products && typeof products === 'object') {
     return {
       ...products,
-      image_url: products.image_url || DEFAULT_PLACEHOLDER
+      image_url: normalizeImageUrl(products.image_url)
     };
   }
   return products;
@@ -147,15 +167,13 @@ exports.createProduct = async (req, res, next) => {
       return res.status(400).json({ message: 'Para juegos de cartas o singles, el tipo de juego es requerido' });
     }
 
-    const finalImageUrl = image_url || DEFAULT_PLACEHOLDER;
-
     const newProduct = await Product.create({
       name,
       price,
       quantity,
       short_description,
       full_description,
-      image_url: finalImageUrl,
+      image_url: image_url || null,
       category_id,
       brand: categoryName === 'accesorios' ? brand : null,
       game_type: (categoryName === 'juegos de cartas' || categoryName === 'singles') ? game_type : null
@@ -215,16 +233,13 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(400).json({ message: 'Para juegos de cartas o singles, el tipo de juego es requerido' });
     }
 
-    // Usar la imagen existente o el placeholder si no se proporciona una nueva
-    const finalImageUrl = image_url || product.image_url || DEFAULT_PLACEHOLDER;
-
     const updatedProduct = await Product.update(productId, {
       name,
       price,
       quantity,
       short_description,
       full_description,
-      image_url: finalImageUrl,
+      image_url,
       category_id,
       brand,
       game_type
